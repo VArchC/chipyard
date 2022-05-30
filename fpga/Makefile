@@ -136,6 +136,32 @@ debug-bitstream: $(build_dir)/obj/post_synth.dcp
 			$(fpga_common_script_dir)
 
 #########################################################################################
+# Create tarball to run bitstream in another host
+#########################################################################################
+
+synth_list_tarball_f := $(build_dir)/$(long_name).tarball.vsrcs.f
+$(synth_list_tarball_f): $(sim_common_files) $(all_vsrcs)
+	mkdir -p $(build_dir)/vsrcs/
+	$(foreach f,$(all_vsrcs),$(if $(subst $(build_dir)/,,$(dir $f)), cp $f $(build_dir)/vsrcs/; echo "vsrcs/$(notdir $f)" >> $@;,echo "$(notdir $f)" >> $@ ;))
+	$(foreach f,$(shell cat $(sim_common_files)),cp $f $(build_dir)/vsrcs/; echo "vsrcs/$(notdir $f)" >> $@;)
+
+TARBALL_MAKEFILE := $(build_dir)/Makefile
+$(TARBALL_MAKEFILE): $(sim_dir)/scripts/vivado.mk
+	echo "long_name := $(long_name)" >> $@
+	echo "MODEL := $(MODEL)" >> $@
+	echo "BOARD := $(BOARD)" >> $@
+	echo "FPGA_BRAND := $(FPGA_BRAND)" >> $@
+	cat $(sim_dir)/scripts/vivado.mk >> $@
+
+TARBALL_FILE := $(gen_dir)/$(long_name).tar.gz
+$(TARBALL_FILE):  $(synth_list_tarball_f) $(TARBALL_MAKEFILE) $(sim_dir)/scripts/run_impl_bitstream.tcl
+	cp $(sim_dir)/scripts/run_impl_bitstream.tcl $(build_dir)
+	cd $(gen_dir); tar -czvf $@ $(long_name)/
+	
+.PHONY: tarball
+tarball: $(TARBALL_FILE)
+
+#########################################################################################
 # general cleanup rules
 #########################################################################################
 .PHONY: clean
