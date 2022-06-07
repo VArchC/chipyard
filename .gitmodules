@@ -133,7 +133,7 @@
 	url = https://github.com/ucb-bar/riscv-sodor.git
 [submodule "fpga/fpga-shells"]
 	path = fpga/fpga-shells
-	url = https://github.com/sifive/fpga-shells.git
+	url = https://github.com/VArchC/fpga-shells.git
 [submodule "tools/api-config-chipsalliance"]
 	path = tools/api-config-chipsalliance
 	url = https://github.com/chipsalliance/api-config-chipsalliance.git
