@@ -5,6 +5,7 @@ import chisel3._
 import freechips.rocketchip.devices.debug._
 import freechips.rocketchip.jtag.{JTAGIO}
 import freechips.rocketchip.subsystem._
+import freechips.rocketchip.amba.axi4.{AXI4Bundle}
 
 import sifive.blocks.devices.uart._
 import sifive.blocks.devices.jtag._
@@ -14,6 +15,8 @@ import sifive.fpgashells.ip.xilinx.{IBUFG, IOBUF, PULLUP, PowerOnResetFPGAOnly}
 
 import chipyard.harness.{ComposeHarnessBinder, OverrideHarnessBinder}
 import chipyard.iobinders.JTAGChipIO
+
+import testchipip.{ClockedAndResetIO}
 
 class WithZCU102ResetHarnessBinder extends ComposeHarnessBinder({
   (system: HasPeripheryDebugModuleImp, th: ZCU102FPGATestHarness, ports: Seq[Bool]) => {
@@ -72,8 +75,55 @@ class WithZCU102JTAGHarnessBinder extends OverrideHarnessBinder({
 class WithZCU102UARTHarnessBinder extends OverrideHarnessBinder({
   (system: HasPeripheryUARTModuleImp, th: ZCU102FPGATestHarness, ports: Seq[UARTPortIO]) => {
     withClockAndReset(th.clock_32MHz, th.reset_n) {
-      IOBUF(th.UART2_TXD_O_FPGA_RXD,  ports.head.txd)
-      ports.head.rxd := IOBUF(th.UART2_RXD_I_FPGA_TXD)
+      IOBUF(th.UART2_RXD_I_FPGA_TXD,  ports.head.txd)
+      ports.head.rxd := IOBUF(th.UART2_TXD_O_FPGA_RXD)
     }
+  }
+})
+
+class WithZCU102DDRHarnessBinder extends OverrideHarnessBinder({
+  (system: CanHaveMasterAXI4MemPort, th: ZCU102FPGATestHarness, ports: Seq[ClockedAndResetIO[AXI4Bundle]]) => {
+    require(ports.size == 1)
+
+    th.ip_ddr_clkconv.io.s_axi_aclk     :=  ports(0).clock
+    th.ip_ddr_clkconv.io.s_axi_aresetn  :=  ~(ports(0).reset.asBool)
+    th.ip_ddr_clkconv.io.s_axi_awid     :=  ports(0).bits.aw.bits.id
+    th.ip_ddr_clkconv.io.s_axi_awaddr   :=  ports(0).bits.aw.bits.addr(28,0)
+    th.ip_ddr_clkconv.io.s_axi_awlen    :=  ports(0).bits.aw.bits.len
+    th.ip_ddr_clkconv.io.s_axi_awsize   :=  ports(0).bits.aw.bits.size
+    th.ip_ddr_clkconv.io.s_axi_awburst  :=  ports(0).bits.aw.bits.burst
+    th.ip_ddr_clkconv.io.s_axi_awlock   :=  ports(0).bits.aw.bits.lock
+    th.ip_ddr_clkconv.io.s_axi_awcache  :=  ports(0).bits.aw.bits.cache
+    th.ip_ddr_clkconv.io.s_axi_awprot   :=  ports(0).bits.aw.bits.prot
+    th.ip_ddr_clkconv.io.s_axi_awqos    :=  ports(0).bits.aw.bits.qos
+    th.ip_ddr_clkconv.io.s_axi_awvalid  :=  ports(0).bits.aw.valid
+    ports(0).bits.aw.ready              :=  th.ip_ddr_clkconv.io.s_axi_awready
+    th.ip_ddr_clkconv.io.s_axi_wdata    :=  ports(0).bits.w.bits.data
+    th.ip_ddr_clkconv.io.s_axi_wstrb    :=  ports(0).bits.w.bits.strb
+    th.ip_ddr_clkconv.io.s_axi_wlast    :=  ports(0).bits.w.bits.last
+    th.ip_ddr_clkconv.io.s_axi_wvalid   :=  ports(0).bits.w.valid
+    ports(0).bits.w.ready               :=  th.ip_ddr_clkconv.io.s_axi_wready
+    th.ip_ddr_clkconv.io.s_axi_bready   :=  ports(0).bits.b.ready
+    ports(0).bits.b.bits.id             :=  th.ip_ddr_clkconv.io.s_axi_bid
+    ports(0).bits.b.bits.resp           :=  th.ip_ddr_clkconv.io.s_axi_bresp
+    ports(0).bits.b.valid               :=  th.ip_ddr_clkconv.io.s_axi_bvalid
+    th.ip_ddr_clkconv.io.s_axi_arid     :=  ports(0).bits.ar.bits.id
+    th.ip_ddr_clkconv.io.s_axi_araddr   :=  ports(0).bits.ar.bits.addr(28,0)
+    th.ip_ddr_clkconv.io.s_axi_arlen    :=  ports(0).bits.ar.bits.len
+    th.ip_ddr_clkconv.io.s_axi_arsize   :=  ports(0).bits.ar.bits.size
+    th.ip_ddr_clkconv.io.s_axi_arburst  :=  ports(0).bits.ar.bits.burst
+    th.ip_ddr_clkconv.io.s_axi_arlock   :=  ports(0).bits.ar.bits.lock
+    th.ip_ddr_clkconv.io.s_axi_arcache  :=  ports(0).bits.ar.bits.cache
+    th.ip_ddr_clkconv.io.s_axi_arprot   :=  ports(0).bits.ar.bits.prot
+    th.ip_ddr_clkconv.io.s_axi_arqos    :=  ports(0).bits.ar.bits.qos
+    th.ip_ddr_clkconv.io.s_axi_arvalid  :=  ports(0).bits.ar.valid
+    ports(0).bits.ar.ready              :=  th.ip_ddr_clkconv.io.s_axi_arready
+    th.ip_ddr_clkconv.io.s_axi_rready   :=  ports(0).bits.r.ready
+    ports(0).bits.r.bits.id             :=  th.ip_ddr_clkconv.io.s_axi_rid
+    ports(0).bits.r.bits.data           :=  th.ip_ddr_clkconv.io.s_axi_rdata
+    ports(0).bits.r.bits.resp           :=  th.ip_ddr_clkconv.io.s_axi_rresp
+    ports(0).bits.r.bits.last           :=  th.ip_ddr_clkconv.io.s_axi_rlast
+    ports(0).bits.r.valid               :=  th.ip_ddr_clkconv.io.s_axi_rvalid
+
   }
 })

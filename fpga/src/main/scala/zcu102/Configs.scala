@@ -31,6 +31,7 @@ class WithZCU102Tweaks extends Config(
   new WithZCU102JTAGHarnessBinder ++
   new WithZCU102UARTHarnessBinder ++
   new WithZCU102ResetHarnessBinder ++
+  new WithZCU102DDRHarnessBinder ++
   new WithDebugResetPassthrough ++
   new WithDefaultPeripherals ++
   new freechips.rocketchip.subsystem.WithNBreakpoints(2))
@@ -38,3 +39,16 @@ class WithZCU102Tweaks extends Config(
 class TinyRocketZCU102Config extends Config(
   new WithZCU102Tweaks ++
   new chipyard.TinyRocketConfig)
+
+class RocketZCU102Config extends Config(
+  new WithZCU102Tweaks ++
+  new WithEdgeDataBits(128) ++
+  new freechips.rocketchip.subsystem.WithExtMemSize((1<<29) * 1L) ++ // use 512MB external memory
+  new chipyard.RocketConfig)
+
+class QuadRocketZCU102Config extends Config(
+  new WithZCU102Tweaks ++
+  new WithEdgeDataBits(128) ++
+  new freechips.rocketchip.subsystem.WithExtMemSize((1<<29) * 1L) ++ // use 512MB external memory
+  new freechips.rocketchip.subsystem.WithNBigCores(4) ++ 
+  new chipyard.config.AbstractConfig)
