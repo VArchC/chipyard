@@ -16,6 +16,8 @@ import sifive.fpgashells.ip.xilinx.{IBUFG, IOBUF, PULLUP, PowerOnResetFPGAOnly}
 import chipyard.harness.{ComposeHarnessBinder, OverrideHarnessBinder}
 import chipyard.iobinders.JTAGChipIO
 
+import chipyard.{AxRAMTopIO,CanHavePeripheryAxRAMModuleImp}
+
 import testchipip.{ClockedAndResetIO}
 
 class WithZCU102ResetHarnessBinder extends ComposeHarnessBinder({
@@ -58,10 +60,6 @@ class WithZCU102JTAGHarnessBinder extends OverrideHarnessBinder({
 
           IOBUF(th.PMOD0_3, io_jtag.TDO)
 
-          //// mimic putting a pullup on this line (part of reset vote)
-          //th.SRST_n := IOBUF(th.jd_6)
-          //PULLUP(th.jd_6)
-
           // ignore the po input
           io_jtag.TCK.i.po.map(_ := DontCare)
           io_jtag.TDI.i.po.map(_ := DontCare)
@@ -75,15 +73,53 @@ class WithZCU102JTAGHarnessBinder extends OverrideHarnessBinder({
 class WithZCU102UARTHarnessBinder extends OverrideHarnessBinder({
   (system: HasPeripheryUARTModuleImp, th: ZCU102FPGATestHarness, ports: Seq[UARTPortIO]) => {
     withClockAndReset(th.clock_32MHz, th.reset_n) {
-      IOBUF(th.UART2_RXD_I_FPGA_TXD,  ports.head.txd)
-      ports.head.rxd := IOBUF(th.UART2_TXD_O_FPGA_RXD)
+      //IOBUF(th.UART2_RXD_I_FPGA_TXD,  ports.head.txd)
+      //ports.head.rxd := IOBUF(th.UART2_TXD_O_FPGA_RXD)
+
+      IOBUF(th.UART2_RXD_I_FPGA_TXD,  ports(1).txd)
+      ports(1).rxd := IOBUF(th.UART2_TXD_O_FPGA_RXD)
+
+      IOBUF(th.PMOD0_6,  ports(0).txd)
+      ports(0).rxd := IOBUF(th.PMOD0_7)
     }
+  }
+})
+
+class WithZCU102AxRAMHarnessBinder extends OverrideHarnessBinder({
+  (system: CanHavePeripheryAxRAMModuleImp, th: ZCU102FPGATestHarness, ports: Seq[AxRAMTopIO]) => {
+    require(ports.size == 1)
+
+    IOBUF(th.GPIO_LED_0, th.axram_reg_m(5))
+    IOBUF(th.GPIO_LED_1, th.axram_reg_m(6))
+    IOBUF(th.GPIO_LED_2, th.axram_reg_m(7))
+    IOBUF(th.GPIO_LED_3, th.axram_reg_m(8))
+    IOBUF(th.GPIO_LED_4, th.axram_reg_i(5))
+    IOBUF(th.GPIO_LED_5, th.axram_reg_i(6))
+    IOBUF(th.GPIO_LED_6, th.axram_reg_i(7))
+    IOBUF(th.GPIO_LED_7, th.axram_reg_i(8))
+
+    th.axram_reg_a := ports(0).reg_a
+    th.axram_reg_x := ports(0).reg_x
+    ports(0).reg_m := th.axram_reg_m
+    ports(0).reg_i := th.axram_reg_i
   }
 })
 
 class WithZCU102DDRHarnessBinder extends OverrideHarnessBinder({
   (system: CanHaveMasterAXI4MemPort, th: ZCU102FPGATestHarness, ports: Seq[ClockedAndResetIO[AXI4Bundle]]) => {
     require(ports.size == 1)
+
+    val axram = withClockAndReset(ports(0).clock, ports(0).reset) {Module(new AxRAMInjector())}
+    axram.io.axram.reg_a := th.axram_reg_a
+    axram.io.axram.reg_x := th.axram_reg_x
+    th.axram_reg_m := axram.io.axram.reg_m
+    th.axram_reg_i := axram.io.axram.reg_i
+
+    axram.io.axi.arid                   :=  ports(0).bits.ar.bits.id
+    axram.io.axi.araddr                 :=  ports(0).bits.ar.bits.addr(28,0)
+    axram.io.axi.arvalid                :=  ports(0).bits.ar.valid
+    axram.io.axi.rid                    :=  th.ip_ddr_clkconv.io.s_axi_rid
+    axram.io.axi.rvalid                 :=  th.ip_ddr_clkconv.io.s_axi_rvalid
 
     th.ip_ddr_clkconv.io.s_axi_aclk     :=  ports(0).clock
     th.ip_ddr_clkconv.io.s_axi_aresetn  :=  ~(ports(0).reset.asBool)
@@ -120,7 +156,8 @@ class WithZCU102DDRHarnessBinder extends OverrideHarnessBinder({
     ports(0).bits.ar.ready              :=  th.ip_ddr_clkconv.io.s_axi_arready
     th.ip_ddr_clkconv.io.s_axi_rready   :=  ports(0).bits.r.ready
     ports(0).bits.r.bits.id             :=  th.ip_ddr_clkconv.io.s_axi_rid
-    ports(0).bits.r.bits.data           :=  th.ip_ddr_clkconv.io.s_axi_rdata
+    ports(0).bits.r.bits.data           :=  axram.io.axi.rdata_cpu
+    axram.io.axi.rdata_mem              :=  th.ip_ddr_clkconv.io.s_axi_rdata
     ports(0).bits.r.bits.resp           :=  th.ip_ddr_clkconv.io.s_axi_rresp
     ports(0).bits.r.bits.last           :=  th.ip_ddr_clkconv.io.s_axi_rlast
     ports(0).bits.r.valid               :=  th.ip_ddr_clkconv.io.s_axi_rvalid

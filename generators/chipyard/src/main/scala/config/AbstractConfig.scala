@@ -39,6 +39,7 @@ class AbstractConfig extends Config(
   new chipyard.iobinders.WithTraceIOPunchthrough ++
   new chipyard.iobinders.WithExtInterruptIOCells ++
   new chipyard.iobinders.WithCustomBootPin ++
+  new chipyard.WithAxRAMIOPassthrough ++
 
   new testchipip.WithDefaultSerialTL ++                          // use serialized tilelink port to external serialadapter/harnessRAM
   new chipyard.config.WithBootROM ++                             // use default bootrom

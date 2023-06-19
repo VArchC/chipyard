@@ -31,6 +31,7 @@ class DigitalTop(implicit p: Parameters) extends ChipyardSystem
   with chipyard.example.CanHavePeripheryStreamingFIR // Enables optionally adding the DSPTools FIR example widget
   with chipyard.example.CanHavePeripheryStreamingPassthrough // Enables optionally adding the DSPTools streaming-passthrough example widget
   with nvidia.blocks.dla.CanHavePeripheryNVDLA // Enables optionally having an NVDLA
+  with chipyard.CanHavePeripheryAxRAM // Enables optionally adding the AxRAM Approximate Memory Interface
 {
   override lazy val module = new DigitalTopModule(this)
 }
@@ -44,5 +45,6 @@ class DigitalTopModule[+L <: DigitalTop](l: L) extends ChipyardSystemModule(l)
   with sifive.blocks.devices.spi.HasPeripherySPIFlashModuleImp
   with sifive.blocks.devices.spi.HasPeripherySPIModuleImp
   with chipyard.example.CanHavePeripheryGCDModuleImp
+  with chipyard.CanHavePeripheryAxRAMModuleImp
   with freechips.rocketchip.util.DontTouch
 // DOC include end: DigitalTop

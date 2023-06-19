@@ -64,7 +64,7 @@ ifeq ($(SUB_PROJECT),zcu102)
 	MODEL             ?= ZCU102FPGATestHarness
 	VLOG_MODEL        ?= ZCU102FPGATestHarness
 	MODEL_PACKAGE     ?= chipyard.fpga.zcu102
-	CONFIG            ?= TinyRocketZCU102Config
+	CONFIG            ?= QuadRocketZCU102Config
 	CONFIG_PACKAGE    ?= chipyard.fpga.zcu102
 	GENERATOR_PACKAGE ?= chipyard
 	TB                ?= none # unused
